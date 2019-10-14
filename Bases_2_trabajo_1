@@ -24,8 +24,12 @@ insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferi
 insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(14,'15-01-2019',40,4,1);
 
 DECLARE
- n NUMBER := NULL;
- m NUMBER := NULL;
+ CURSOR ord_c(n_cursor NUMBER,f_i_cursor transferencia.fecha%TYPE,f_f_cursor transferencia.fecha%TYPE) IS select * from (select cuentaOrigen,sum(valorTransferido) as totaltranferido from transferencia where fecha between f_i_cursor and f_f_cursor group by cuentaOrigen order by totaltranferido desc) where rownum<=n_cursor;
+
+ CURSOR ord_d(C_O_cursor NUMBER,m_cursor NUMBER) IS select * from (select cuentaDestino,sum(valorTransferido) as valor,count(*) as conteo from transferencia where cuentaorigen=C_O_cursor group by cuentaDestino order by cuentadestino asc) where rownum <= m_cursor;
+
+ n NUMBER := 0;
+ m NUMBER := 0;
  fecha_inicial transferencia.fecha%TYPE;
  fecha_final transferencia.fecha%TYPE;
  mensaje VARCHAR(50):='';
@@ -34,13 +38,16 @@ BEGIN
  m:= &valor_m;
  fecha_inicial:= &valor_fecha_inicial;
  fecha_final:= &valor_fecha_final;
- FOR mi_e IN (select * from (select cuentaOrigen,sum(valorTransferido) as totaltranferido from transferencia where fecha between '10-01-2019' and '30-01-2019' group by cuentaOrigen order by totaltranferido desc) where rownum<=3) 
- LOOP
-
-  FOR mi_f IN (select cuentaDestino,sum(valorTransferido),count(*) as conteo from transferencia where cuentaorigen=10 group by cuentaDestino order by cuentadestino asc) 
+ 
+ FOR mi_e IN ord_c(n,fecha_inicial,fecha_final) LOOP
+  mensaje:= mensaje || mi_e.cuentaorigen;
+  FOR mi_f IN ord_d(mi_e.cuentaorigen,m) 
    LOOP
-    DBMS_OUTPUT.PUT_LINE(mi_e.cuentaOrigen ||'    ($'|| mi_f.cuentaDestino||','||mi_f.conteo||' tfs)');
+    mensaje:= mensaje||'   '||mi_f.cuentaDestino||'($'||mi_f.valor||', '||mi_f.conteo||' tfs)    ';
+    
    END LOOP;
+   DBMS_OUTPUT.PUT_LINE(mensaje);
+   mensaje:='';
  END LOOP;
 END;
 /

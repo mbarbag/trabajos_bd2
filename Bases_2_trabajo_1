@@ -1,0 +1,113 @@
+CREATE TABLE transferencia(
+codigo NUMBER(8) PRIMARY KEY,
+fecha DATE NOT NULL,
+cuentaOrigen NUMBER(8) NOT NULL,
+cuentaDestino NUMBER(8) NOT NULL,
+valorTransferido NUMBER(8) NOT NULL CHECK(valorTransferido>=0),
+CHECK (cuentaOrigen <> cuentaDestino)
+);
+
+
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(1,'10-01-2019',10,15,5);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(2,'10-01-2019',10,15,4);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(3,'10-01-2019',10,8,3);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(4,'11-01-2019',10,8,7);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(5,'11-01-2019',20,15,2);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(6,'11-01-2019',20,22,3);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(7,'12-01-2019',20,22,2);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(8,'12-01-2019',30,7,4);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(9,'11-01-2019',30,7,4);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(10,'11-01-2019',40,1,4);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(11,'12-01-2019',40,1,4);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(12,'12-01-2019',40,2,6);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(13,'14-01-2019',40,4,1);
+insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(14,'15-01-2019',40,4,1);
+
+DECLARE
+ n NUMBER := NULL;
+ m NUMBER := NULL;
+ fecha_inicial transferencia.fecha%TYPE;
+ fecha_final transferencia.fecha%TYPE;
+ mensaje VARCHAR(50):='';
+BEGIN
+ n:= &valor_n;
+ m:= &valor_m;
+ fecha_inicial:= &valor_fecha_inicial;
+ fecha_final:= &valor_fecha_final;
+ FOR mi_e IN (select * from (select cuentaOrigen,sum(valorTransferido) as totaltranferido from transferencia where fecha between '10-01-2019' and '30-01-2019' group by cuentaOrigen order by totaltranferido desc) where rownum<=3) 
+ LOOP
+
+  FOR mi_f IN (select cuentaDestino,sum(valorTransferido),count(*) as conteo from transferencia where cuentaorigen=10 group by cuentaDestino order by cuentadestino asc) 
+   LOOP
+    DBMS_OUTPUT.PUT_LINE(mi_e.cuentaOrigen ||'    ($'|| mi_f.cuentaDestino||','||mi_f.conteo||' tfs)');
+   END LOOP;
+ END LOOP;
+END;
+/
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+CREATE TABLE empleado(
+codigo NUMBER(8) PRIMARY KEY,
+jefe NUMBER(8) REFERENCES empleado,
+salario NUMBER(8) NOT NULL,
+total_sal_descendientes NUMBER(8) NOT NULL,
+total_sal_ancestros NUMBER(8) NOT NULL,
+total_sal_hermanos NUMBER(8) NOT NULL
+);
+
+
+drop trigger insercion_empleado;
+CREATE OR REPLACE TRIGGER insercion_empleado
+BEFORE INSERT ON empleado
+FOR EACH ROW
+DECLARE
+ CURSOR ord_c IS select * from empleado;
+ descendientes empleado.total_sal_descendientes %TYPE;
+ ancestros empleado.total_sal_ancestros%TYPE;
+ hermanos empleado.total_sal_hermanos%TYPE;
+ elsalario empleado.salario%TYPE;
+ eljefe empleado.jefe%TYPE;
+BEGIN
+ ancestros := 0;
+ hermanos := 0;
+ descendientes := 0;
+ dbms_output.put_line('entro begin');
+ eljefe := :NEW.jefe;
+
+ IF eljefe is not NULL THEN 
+   WHILE eljefe is not NULL LOOP
+   UPDATE empleado SET total_sal_descendientes = total_sal_descendientes + :NEW.salario
+   WHERE codigo = eljefe;
+   SELECT salario,jefe INTO elsalario, eljefe
+   FROM empleado WHERE codigo = eljefe;
+   ancestros  := ancestros+elsalario;    
+  END LOOP;
+  
+  FOR mi_e IN ord_c LOOP
+   IF mi_e.jefe = :NEW.jefe THEN 
+    hermanos := hermanos + mi_e.salario;
+    UPDATE empleado SET total_sal_hermanos = total_sal_hermanos + :NEW.salario where codigo=mi_e.codigo;
+    DBMS_OUTPUT.PUT_LINE(mi_e.salario);
+   END IF;
+  END LOOP;
+
+ ELSE
+  FOR mi_e IN ord_c LOOP
+   IF mi_e.jefe is NULL THEN 
+    UPDATE empleado SET total_sal_hermanos = total_sal_hermanos + :NEW.salario where codigo=mi_e.codigo;
+    hermanos := hermanos + mi_e.salario;    
+   END IF;
+  END LOOP;
+ END IF;
+
+ :NEW.total_sal_ancestros := ancestros;
+ :NEW.total_sal_descendientes := descendientes; 
+ :NEW.total_sal_hermanos := hermanos;
+ dbms_output.put_line('usuario insertado');
+END;
+/
+
+
+

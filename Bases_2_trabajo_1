@@ -1,3 +1,4 @@
+DROP TABLE transferencia;
 CREATE TABLE transferencia(
 codigo NUMBER(8) PRIMARY KEY,
 fecha DATE NOT NULL,
@@ -6,6 +7,9 @@ cuentaDestino NUMBER(8) NOT NULL,
 valorTransferido NUMBER(8) NOT NULL CHECK(valorTransferido>=0),
 CHECK (cuentaOrigen <> cuentaDestino)
 );
+
+
+
 
 
 insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(1,'10-01-2019',10,15,5);
@@ -23,38 +27,72 @@ insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferi
 insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(13,'14-01-2019',40,4,1);
 insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(14,'15-01-2019',40,4,1);
 
+
+
 DECLARE
+
  CURSOR ord_c(n_cursor NUMBER,f_i_cursor transferencia.fecha%TYPE,f_f_cursor transferencia.fecha%TYPE) IS select * from (select cuentaOrigen,sum(valorTransferido) as totaltranferido from transferencia where fecha between f_i_cursor and f_f_cursor group by cuentaOrigen order by totaltranferido desc) where rownum<=n_cursor;
+
+
 
  CURSOR ord_d(C_O_cursor NUMBER,m_cursor NUMBER) IS select * from (select cuentaDestino,sum(valorTransferido) as valor,count(*) as conteo from transferencia where cuentaorigen=C_O_cursor group by cuentaDestino order by cuentadestino asc) where rownum <= m_cursor;
 
+
+
  n NUMBER := 0;
+
  m NUMBER := 0;
+
  fecha_inicial transferencia.fecha%TYPE;
+
  fecha_final transferencia.fecha%TYPE;
- mensaje VARCHAR(50):='';
+
+ mensaje VARCHAR(2000):='';
+
 BEGIN
+
  n:= &valor_n;
+
  m:= &valor_m;
+
  fecha_inicial:= &valor_fecha_inicial;
+
  fecha_final:= &valor_fecha_final;
+
  
+
  FOR mi_e IN ord_c(n,fecha_inicial,fecha_final) LOOP
+
   mensaje:= mensaje || mi_e.cuentaorigen;
+
   FOR mi_f IN ord_d(mi_e.cuentaorigen,m) 
+
    LOOP
+
     mensaje:= mensaje||'   '||mi_f.cuentaDestino||'($'||mi_f.valor||', '||mi_f.conteo||' tfs)    ';
+
     
+
    END LOOP;
+
    DBMS_OUTPUT.PUT_LINE(mensaje);
+
    mensaje:='';
+
  END LOOP;
+
 END;
+
 /
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+
+DROP TABLE empleado;
 CREATE TABLE empleado(
 codigo NUMBER(8) PRIMARY KEY,
 jefe NUMBER(8) REFERENCES empleado,
@@ -65,56 +103,105 @@ total_sal_hermanos NUMBER(8) NOT NULL
 );
 
 
+
+
+
 drop trigger insercion_empleado;
+
 CREATE OR REPLACE TRIGGER insercion_empleado
+
 BEFORE INSERT ON empleado
+
 FOR EACH ROW
+
 DECLARE
+
  CURSOR ord_c IS select * from empleado;
+
  descendientes empleado.total_sal_descendientes %TYPE;
+
  ancestros empleado.total_sal_ancestros%TYPE;
+
  hermanos empleado.total_sal_hermanos%TYPE;
+
  elsalario empleado.salario%TYPE;
+
  eljefe empleado.jefe%TYPE;
+
 BEGIN
+
  ancestros := 0;
+
  hermanos := 0;
+
  descendientes := 0;
+
  dbms_output.put_line('entro begin');
+
  eljefe := :NEW.jefe;
 
+
+
  IF eljefe is not NULL THEN 
+
    WHILE eljefe is not NULL LOOP
+
    UPDATE empleado SET total_sal_descendientes = total_sal_descendientes + :NEW.salario
+
    WHERE codigo = eljefe;
+
    SELECT salario,jefe INTO elsalario, eljefe
+
    FROM empleado WHERE codigo = eljefe;
+
    ancestros  := ancestros+elsalario;    
+
   END LOOP;
+
   
+
   FOR mi_e IN ord_c LOOP
+
    IF mi_e.jefe = :NEW.jefe THEN 
+
     hermanos := hermanos + mi_e.salario;
+
     UPDATE empleado SET total_sal_hermanos = total_sal_hermanos + :NEW.salario where codigo=mi_e.codigo;
+
     DBMS_OUTPUT.PUT_LINE(mi_e.salario);
+
    END IF;
+
   END LOOP;
+
+
 
  ELSE
+
   FOR mi_e IN ord_c LOOP
+
    IF mi_e.jefe is NULL THEN 
+
     UPDATE empleado SET total_sal_hermanos = total_sal_hermanos + :NEW.salario where codigo=mi_e.codigo;
+
     hermanos := hermanos + mi_e.salario;    
+
    END IF;
+
   END LOOP;
+
  END IF;
 
+
+
  :NEW.total_sal_ancestros := ancestros;
+
  :NEW.total_sal_descendientes := descendientes; 
+
  :NEW.total_sal_hermanos := hermanos;
+
  dbms_output.put_line('usuario insertado');
+
 END;
+
 /
-
-
-

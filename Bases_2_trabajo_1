@@ -28,38 +28,16 @@ insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferi
 insert into transferencia(codigo,fecha,cuentaOrigen,cuentaDestino,valorTransferido)VALUES(14,'15-01-2019',40,4,1);
 
 
-
-DECLARE
+DROP PROCEDURE transferencias;
+CREATE OR REPLACE PROCEDURE transferencias (n IN NUMBER, m IN NUMBER, fecha_inicial IN transferencia.fecha%TYPE, fecha_final IN transferencia.fecha%TYPE) IS
 
  CURSOR ord_c(n_cursor NUMBER,f_i_cursor transferencia.fecha%TYPE,f_f_cursor transferencia.fecha%TYPE) IS select * from (select cuentaOrigen,sum(valorTransferido) as totaltranferido from transferencia where fecha between f_i_cursor and f_f_cursor group by cuentaOrigen order by totaltranferido desc) where rownum<=n_cursor;
 
-
-
  CURSOR ord_d(C_O_cursor NUMBER,m_cursor NUMBER) IS select * from (select cuentaDestino,sum(valorTransferido) as valor,count(*) as conteo from transferencia where cuentaorigen=C_O_cursor group by cuentaDestino order by cuentadestino asc) where rownum <= m_cursor;
-
-
-
- n NUMBER := 0;
-
- m NUMBER := 0;
-
- fecha_inicial transferencia.fecha%TYPE;
-
- fecha_final transferencia.fecha%TYPE;
 
  mensaje VARCHAR(2000):='';
 
 BEGIN
-
- n:= &valor_n;
-
- m:= &valor_m;
-
- fecha_inicial:= &valor_fecha_inicial;
-
- fecha_final:= &valor_fecha_final;
-
- 
 
  FOR mi_e IN ord_c(n,fecha_inicial,fecha_final) LOOP
 
@@ -70,8 +48,6 @@ BEGIN
    LOOP
 
     mensaje:= mensaje||'   '||mi_f.cuentaDestino||'($'||mi_f.valor||', '||mi_f.conteo||' tfs)    ';
-
-    
 
    END LOOP;
 

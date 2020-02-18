@@ -137,3 +137,31 @@ BEGIN
     END LOOP;
 END;
 /
+
+--Trigger Las coordenadas de cada local formen un rectángulo
+/*Caso:
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(0,10,0,11),12)
+ )
+);*/
+CREATE OR REPLACE TRIGGER insertar5
+BEFORE INSERT ON oferente
+FOR EACH ROW
+DECLARE
+ local_varr local_varray;
+BEGIN
+    SELECT :NEW.locales INTO local_varr FROM dual;
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        IF local_varr(i).coord(1) = local_varr(i).coord(3) and local_varr(i).coord(2) = local_varr(i).coord(4) THEN
+            RAISE_APPLICATION_ERROR(-20564, 'No se permiten locales en forma de punto');
+        END IF;
+        IF local_varr(i).coord(1) = local_varr(i).coord(3) THEN
+            RAISE_APPLICATION_ERROR(-20564, 'No se permiten locales en forma de línea vertical');
+        END IF;
+        IF local_varr(i).coord(2) = local_varr(i).coord(4) THEN
+            RAISE_APPLICATION_ERROR(-20564, 'No se permiten locales en forma de línea horizontal');
+        END IF;
+    END LOOP;
+END;
+/

@@ -122,16 +122,16 @@ DECLARE
 BEGIN
     SELECT :NEW.locales INTO local_varr FROM dual;
     FOR i IN 1 .. local_varr.COUNT LOOP
-        IF local_varr(i).coord(1) < 0 THEN
+        IF local_varr(i).coord(1) < 0 or local_varr(i).coord(1) > 100 THEN
             RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
         END IF;
-        IF local_varr(i).coord(2) < 0 THEN
+        IF local_varr(i).coord(2) < 0 or local_varr(i).coord(2) > 100 THEN
             RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
         END IF;
-        IF local_varr(i).coord(3) > 100 THEN
+        IF local_varr(i).coord(3) > 100 or local_varr(i).coord(3) < 0 THEN
             RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
         END IF;
-        IF local_varr(i).coord(4) > 100 THEN
+        IF local_varr(i).coord(4) > 100 or local_varr(i).coord(4) < 0 THEN
             RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
         END IF;
     END LOOP;
@@ -162,6 +162,62 @@ BEGIN
         IF local_varr(i).coord(2) = local_varr(i).coord(4) THEN
             RAISE_APPLICATION_ERROR(-20564, 'No se permiten locales en forma de línea horizontal');
         END IF;
+    END LOOP;
+END;
+/
+
+--Trigger Los locales solicitados por un mismo oferente no se solapen
+/*Caso:
+INSERT INTO oferente VALUES(3, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,10,40,40),20),
+              local_tip(coord_varray(0,0,20,20),12)
+ )
+);*/
+CREATE OR REPLACE TRIGGER insertar6
+BEFORE INSERT ON oferente
+FOR EACH ROW
+DECLARE
+ local_varr local_varray;
+BEGIN
+    SELECT :NEW.locales INTO local_varr FROM dual;
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        FOR j IN (i+1) .. local_varr.COUNT LOOP
+            IF (local_varr(i).coord(1) < local_varr(j).coord(3) and local_varr(i).coord(1) > local_varr(j).coord(1)) and
+                (local_varr(i).coord(2) < local_varr(j).coord(4) and local_varr(i).coord(2) > local_varr(j).coord(2)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+            IF (local_varr(i).coord(1) < local_varr(j).coord(1) and local_varr(i).coord(1) > local_varr(j).coord(3)) and
+                (local_varr(i).coord(2) < local_varr(j).coord(2) and local_varr(i).coord(2) > local_varr(j).coord(4)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+
+            IF (local_varr(i).coord(1) < local_varr(j).coord(3) and local_varr(i).coord(1) > local_varr(j).coord(1)) and
+                (local_varr(i).coord(4) < local_varr(j).coord(4) and local_varr(i).coord(4) > local_varr(j).coord(2)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+            IF (local_varr(i).coord(1) < local_varr(j).coord(1) and local_varr(i).coord(1) > local_varr(j).coord(3)) and
+                (local_varr(i).coord(4) < local_varr(j).coord(2) and local_varr(i).coord(4) > local_varr(j).coord(4)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+
+            IF local_varr(i).coord(3) < local_varr(j).coord(3) and local_varr(i).coord(3) > local_varr(j).coord(1) and
+                (local_varr(i).coord(2) < local_varr(j).coord(4) and local_varr(i).coord(2) > local_varr(j).coord(2)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+            IF local_varr(i).coord(3) < local_varr(j).coord(1) and local_varr(i).coord(3) > local_varr(j).coord(3) and
+                (local_varr(i).coord(2) < local_varr(j).coord(2) and local_varr(i).coord(2) > local_varr(j).coord(4)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+
+            IF local_varr(i).coord(3) < local_varr(j).coord(3) and local_varr(i).coord(3) > local_varr(j).coord(1) and
+                (local_varr(i).coord(4) < local_varr(j).coord(4) and local_varr(i).coord(4) > local_varr(j).coord(2)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+            IF local_varr(i).coord(3) < local_varr(j).coord(1) and local_varr(i).coord(3) > local_varr(j).coord(3) and
+                (local_varr(i).coord(4) < local_varr(j).coord(2) and local_varr(i).coord(4) > local_varr(j).coord(4)) THEN
+                RAISE_APPLICATION_ERROR(-20564, 'Los rectángulos no se pueden solapar');
+            END IF;
+        END LOOP;
     END LOOP;
 END;
 /

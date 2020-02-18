@@ -18,7 +18,7 @@ CREATE OR REPLACE TYPE local_tip AS OBJECT(
 los locales deseados*/
 DROP TYPE local_varray FORCE;
 CREATE OR REPLACE TYPE local_varray AS 
-VARRAY(4) OF local_tip;
+VARRAY(4) OF local_tip; --Si ingreso 5 o más locales sale el error ORA-22909: exceeded maximum VARRAY limit
 /
 
 /*Se crea la clase de oferentes que tiene la info
@@ -54,7 +54,8 @@ SELECT idOferente, l.coord
 FROM oferente o, TABLE(o.locales) l;
 */
 
-CREATE OR REPLACE TRIGGER insertar
+--Trigger El máximo de oferentes es 5
+CREATE OR REPLACE TRIGGER insertar1
 BEFORE INSERT ON oferente
 DECLARE
     total NUMBER(2);
@@ -66,3 +67,73 @@ BEGIN
 END;
 /
 
+--Trigger Cada oferente solicite al menos un local
+/*Caso:
+INSERT INTO oferente VALUES(2, 'Noemi Wolfs',
+ local_varray()
+);*/
+CREATE OR REPLACE TRIGGER insertar2
+BEFORE INSERT ON oferente
+FOR EACH ROW
+DECLARE
+ local_varr local_varray;
+BEGIN
+    SELECT :NEW.locales INTO local_varr FROM dual;
+    IF local_varr.COUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20564, 'Debes solicitar al menos un local');
+    END IF;
+END;
+/
+
+--Trigger No poner coordenadas incompletas
+/*Caso:
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(30,20),12)
+ )
+);*/
+CREATE OR REPLACE TRIGGER insertar3
+BEFORE INSERT ON oferente
+FOR EACH ROW
+DECLARE
+ local_varr local_varray;
+BEGIN
+    SELECT :NEW.locales INTO local_varr FROM dual;
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        IF local_varr(i).coord.COUNT < 4 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Debes poner cuatro coordenadas');
+        END IF;
+    END LOOP;
+END;
+/
+
+--Trigger Las coordenadas de cada local no se salgan de las coordenadas del cuadrado del CC
+/*Caso:
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(0,30,20,105),12)
+ )
+);*/
+CREATE OR REPLACE TRIGGER insertar4
+BEFORE INSERT ON oferente
+FOR EACH ROW
+DECLARE
+ local_varr local_varray;
+BEGIN
+    SELECT :NEW.locales INTO local_varr FROM dual;
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        IF local_varr(i).coord(1) < 0 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(2) < 0 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(3) > 100 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(4) > 100 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+    END LOOP;
+END;
+/

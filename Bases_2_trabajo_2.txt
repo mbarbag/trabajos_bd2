@@ -1,0 +1,68 @@
+/*Se crea un VARRAY de máximo 4 elementos que guardará 
+las coordenadas del rectángulo*/
+DROP TYPE coord_varray FORCE;
+CREATE OR REPLACE TYPE coord_varray AS 
+VARRAY(4) OF NUMBER (4);
+/
+
+/*Se crea la clase de locales que tiene la info
+de las coordenas deseadas y el precio dispuesto a pagar*/
+DROP TYPE local_tip FORCE;
+CREATE OR REPLACE TYPE local_tip AS OBJECT(
+ coord coord_varray,
+ precio NUMBER(15)
+);
+/
+
+/*Se crea un VARRAY de máximo 4 elementos que guardará
+los locales deseados*/
+DROP TYPE local_varray FORCE;
+CREATE OR REPLACE TYPE local_varray AS 
+VARRAY(4) OF local_tip;
+/
+
+/*Se crea la clase de oferentes que tiene la info
+del identificador y nombre del oferente y los locales
+deseados*/
+DROP TYPE ofer_tip FORCE;
+CREATE TYPE ofer_tip AS OBJECT(
+ idOferente NUMBER(2),
+ nombre VARCHAR2(90),
+ locales local_varray
+);
+/
+
+/*Se crea la tabla que guardará los oferentes*/
+DROP TABLE oferente;
+CREATE TABLE oferente OF ofer_tip (idOferente PRIMARY KEY,
+locales NOT NULL);
+
+
+
+/* Ejemplo de cómo insertar
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(30,20,50,10),12)
+ )
+);
+
+Ejemplo para realizar consultas
+SELECT idOferente, l.*
+FROM oferente o, TABLE(o.locales) l;
+
+SELECT idOferente, l.coord
+FROM oferente o, TABLE(o.locales) l;
+*/
+
+CREATE OR REPLACE TRIGGER insertar
+BEFORE INSERT ON oferente
+DECLARE
+    total NUMBER(2);
+BEGIN
+    SELECT COUNT(*) INTO total FROM oferente;
+    IF total = 5 THEN
+        RAISE_APPLICATION_ERROR(-20564, 'No hay sitio para otro oferente');
+    END IF;
+END;
+/
+

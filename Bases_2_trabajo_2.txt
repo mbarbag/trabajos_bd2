@@ -38,20 +38,14 @@ CREATE TABLE oferente OF ofer_tip (idOferente PRIMARY KEY,
 locales NOT NULL);
 
 
-
-/* Ejemplo de cómo insertar
-INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
- local_varray(local_tip(coord_varray(10,20,30,40),20),
-              local_tip(coord_varray(30,20,50,10),12)
- )
-);
-
-Ejemplo para realizar consultas
+/*Ejemplo para realizar consultas
 SELECT idOferente, l.*
 FROM oferente o, TABLE(o.locales) l;
 
 SELECT idOferente, l.coord
 FROM oferente o, TABLE(o.locales) l;
+
+SELECT idOferente, c.* FROM oferente o, TABLE(o.locales) l, TABLE(l.coord) c;
 */
 
 --Trigger El máximo de oferentes es 5
@@ -85,59 +79,6 @@ BEGIN
 END;
 /
 
---Trigger No poner coordenadas incompletas
-/*Caso:
-INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
- local_varray(local_tip(coord_varray(10,20,30,40),20),
-              local_tip(coord_varray(30,20),12)
- )
-);*/
-CREATE OR REPLACE TRIGGER insertar3
-BEFORE INSERT ON oferente
-FOR EACH ROW
-DECLARE
- local_varr local_varray;
-BEGIN
-    SELECT :NEW.locales INTO local_varr FROM dual;
-    FOR i IN 1 .. local_varr.COUNT LOOP
-        IF local_varr(i).coord.COUNT < 4 THEN
-            RAISE_APPLICATION_ERROR(-20564, 'Debes poner cuatro coordenadas');
-        END IF;
-    END LOOP;
-END;
-/
-
---Trigger Las coordenadas de cada local no se salgan de las coordenadas del cuadrado del CC
-/*Caso:
-INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
- local_varray(local_tip(coord_varray(10,20,30,40),20),
-              local_tip(coord_varray(0,30,20,105),12)
- )
-);*/
-CREATE OR REPLACE TRIGGER insertar4
-BEFORE INSERT ON oferente
-FOR EACH ROW
-DECLARE
- local_varr local_varray;
-BEGIN
-    SELECT :NEW.locales INTO local_varr FROM dual;
-    FOR i IN 1 .. local_varr.COUNT LOOP
-        IF local_varr(i).coord(1) < 0 or local_varr(i).coord(1) > 100 THEN
-            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
-        END IF;
-        IF local_varr(i).coord(2) < 0 or local_varr(i).coord(2) > 100 THEN
-            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
-        END IF;
-        IF local_varr(i).coord(3) > 100 or local_varr(i).coord(3) < 0 THEN
-            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
-        END IF;
-        IF local_varr(i).coord(4) > 100 or local_varr(i).coord(4) < 0 THEN
-            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
-        END IF;
-    END LOOP;
-END;
-/
-
 --Trigger Las coordenadas de cada local formen un rectángulo
 /*Caso:
 INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
@@ -145,7 +86,7 @@ INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
               local_tip(coord_varray(0,10,0,11),12)
  )
 );*/
-CREATE OR REPLACE TRIGGER insertar5
+CREATE OR REPLACE TRIGGER insertar3
 BEFORE INSERT ON oferente
 FOR EACH ROW
 DECLARE
@@ -166,6 +107,22 @@ BEGIN
 END;
 /
 
+--Trigger No poner coordenadas incompletas
+/*Caso:
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(30,20),12)
+ )
+);*/
+
+--Trigger Las coordenadas de cada local no se salgan de las coordenadas del cuadrado del CC
+/*Caso:
+INSERT INTO oferente VALUES(1, 'Noemi Wolfs',
+ local_varray(local_tip(coord_varray(10,20,30,40),20),
+              local_tip(coord_varray(0,30,20,105),12)
+ )
+);*/
+
 --Trigger Los locales solicitados por un mismo oferente no se solapen
 /*Caso:
 INSERT INTO oferente VALUES(3, 'Noemi Wolfs',
@@ -173,13 +130,34 @@ INSERT INTO oferente VALUES(3, 'Noemi Wolfs',
               local_tip(coord_varray(0,0,20,20),12)
  )
 );*/
-CREATE OR REPLACE TRIGGER insertar6
+CREATE OR REPLACE TRIGGER insertar4
 BEFORE INSERT ON oferente
 FOR EACH ROW
 DECLARE
  local_varr local_varray;
 BEGIN
     SELECT :NEW.locales INTO local_varr FROM dual;
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        IF local_varr(i).coord.COUNT < 4 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Debes poner cuatro coordenadas');
+        END IF;
+    END LOOP;
+
+    FOR i IN 1 .. local_varr.COUNT LOOP
+        IF local_varr(i).coord(1) < 0 or local_varr(i).coord(1) > 100 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(2) < 0 or local_varr(i).coord(2) > 100 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(3) > 100 or local_varr(i).coord(3) < 0 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+        IF local_varr(i).coord(4) > 100 or local_varr(i).coord(4) < 0 THEN
+            RAISE_APPLICATION_ERROR(-20564, 'Las coordenadas se salen del CC');
+        END IF;
+    END LOOP;
+
     FOR i IN 1 .. local_varr.COUNT LOOP
         FOR j IN (i+1) .. local_varr.COUNT LOOP
             IF (local_varr(i).coord(1) < local_varr(j).coord(3) and local_varr(i).coord(1) > local_varr(j).coord(1)) and
